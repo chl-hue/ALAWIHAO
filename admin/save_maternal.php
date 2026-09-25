@@ -100,23 +100,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             }
         }
 
-        // 5. Dynamic Redirection batay sa Role ng nag-login
-        if (isset($_SESSION['role'])) {
-            if ($_SESSION['role'] === 'Super Admin') {
-                $redirect_page = 'super_admin_dashboard.php'; 
-            } elseif ($_SESSION['role'] === 'Admin') {
-                $redirect_page = 'admin_dashboard.php'; 
-            } else {
-                $redirect_page = '../user_maternal_records.php';
-            }
-        } else {
-            $redirect_page = '../user_maternal_records.php';
-        }
-
         if (($_SESSION['role'] ?? '') === 'User') {
             header('Location: ../user_maternal_reg.php?status=success');
         } else {
-            header("Location: $redirect_page");
+            header('Location: admin_maternal_reg.php?success=1');
         }
         exit();
     } else {

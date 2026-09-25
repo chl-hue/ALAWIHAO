@@ -319,7 +319,6 @@ while($row = mysqli_fetch_assoc($result)) {
     <!-- CUSTOM CONFIRMATION MODAL PARA SA DELETE -->
     <div id="confirmDeleteModal" class="custom-alert-overlay">
         <div class="custom-alert-box">
-            <div style="font-size: 40px; color: #DD6B20; margin-bottom: 10px;">⚠️</div>
             <h3 style="color: #2D3748; margin: 0 0 10px 0;">Confirm Delete</h3>
             <p id="confirmDeleteText" style="color: #4A5568; font-size: 0.9rem; margin-bottom: 20px;">Permanently delete this record?</p>
             <div style="display: flex; gap: 10px; justify-content: center;">
@@ -332,7 +331,7 @@ while($row = mysqli_fetch_assoc($result)) {
     <!-- CUSTOM NOTIFICATION / ALERT MODAL -->
     <div id="customAlertModal" class="custom-alert-overlay">
         <div class="custom-alert-box">
-            <div id="alertIcon" style="font-size: 45px; margin-bottom: 10px;">ℹ️</div>
+            <div id="alertIcon" style="font-size: 45px; margin-bottom: 10px; display: none;"></div>
             <h3 id="alertTitle" style="color: var(--sage-green); margin: 0 0 10px 0;">Notice</h3>
             <p id="alertMessage" style="color: #4A5568; font-size: 0.9rem; margin-bottom: 20px;">Message text here...</p>
             <button onclick="closeCustomAlert()" style="background: var(--sage-green); color: white; border: none; width: 100%; padding: 10px; border-radius: 6px; font-weight: 600; cursor: pointer;">OK</button>
@@ -346,7 +345,8 @@ while($row = mysqli_fetch_assoc($result)) {
     function showCustomAlert(title, message, isError = false) {
         document.getElementById('alertTitle').innerText = title;
         document.getElementById('alertMessage').innerText = message;
-        document.getElementById('alertIcon').innerText = isError ? "❌" : "✔";
+        document.getElementById('alertIcon').innerText = '';
+        document.getElementById('alertIcon').style.display = 'none';
         document.getElementById('alertTitle').style.color = isError ? "#E53E3E" : "var(--sage-green)";
         document.getElementById('customAlertModal').style.display = 'block';
     }

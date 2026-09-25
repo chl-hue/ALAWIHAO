@@ -6,6 +6,8 @@ if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit();
 }
+
+$show_success_modal = isset($_GET['success']) && $_GET['success'] === '1';
 ?>
 
 <!DOCTYPE html>
@@ -131,6 +133,56 @@ if (!isset($_SESSION['user_id'])) {
             padding: 15px; width: 100%; font-weight: bold; cursor: pointer;
             margin-top: 25px; text-transform: uppercase; border-radius: 4px;
         }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(16, 24, 40, 0.38);
+            backdrop-filter: blur(4px);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .modal-pad {
+            position: relative;
+            background: white;
+            width: 420px;
+            max-width: calc(100% - 24px);
+            padding: 28px 24px 22px;
+            border-radius: 18px;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.18);
+            text-align: center;
+            animation: slideUp 0.25s ease-out;
+        }
+        @keyframes slideUp { from { transform: translateY(18px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .modal-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 30px;
+            height: 30px;
+            border: none;
+            border-radius: 50%;
+            background: #F2F4F7;
+            color: #475467;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+        .modal-btn {
+            background: var(--sage-green);
+            color: white;
+            border: none;
+            padding: 12px 18px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: 0.2s ease;
+        }
+        .modal-btn:hover { background: #587d45; transform: translateY(-1px); }
     </style>
 </head>
 <body>
@@ -373,6 +425,15 @@ if (!isset($_SESSION['user_id'])) {
     </div>
 </div>
 
+<div class="modal-overlay" id="successModal" style="display: <?php echo $show_success_modal ? 'flex' : 'none'; ?>;">
+    <div class="modal-pad">
+        <button type="button" class="modal-close" aria-label="Close" onclick="closeSuccessModal();">×</button>
+        <h3 style="margin: 0 0 10px 0; color: var(--sage-green);">Registration Successful!</h3>
+        <p style="color: #475467; font-size: 0.9rem; margin-bottom: 20px;">The maternal patient has been successfully registered.</p>
+        <button type="button" class="modal-btn" onclick="closeSuccessModal();">Close</button>
+    </div>
+</div>
+
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const sidebar = document.getElementById('mainSidebar') || document.querySelector('.sidebar');
@@ -420,6 +481,14 @@ if (!isset($_SESSION['user_id'])) {
                 }
             });
         });
+    });
+
+    function closeSuccessModal() {
+        document.getElementById('successModal').style.display = 'none';
+    }
+
+    document.getElementById('successModal').addEventListener('click', function(event) {
+        if (event.target === this) closeSuccessModal();
     });
 </script>
 </body>

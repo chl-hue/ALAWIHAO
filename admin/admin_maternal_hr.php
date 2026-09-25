@@ -25,6 +25,7 @@ $sql = "SELECT r.id as mother_id, r.client_fname as first_name, r.client_lname a
         WHERE r.status = 'Approved'
         ORDER BY r.client_fname ASC";
 $result = mysqli_query($conn, $sql);
+$show_success_modal = isset($_GET['success']) && $_GET['success'] == '1';
 ?>
 
 <!DOCTYPE html>
@@ -135,6 +136,60 @@ $result = mysqli_query($conn, $sql);
         
         .trimester-section { display: none; }
         .trimester-section.active-section { display: block; }
+
+        /* SUCCESS POP-UP MODAL STYLING */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(16, 24, 40, 0.38);
+            backdrop-filter: blur(4px);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .modal-pad {
+            position: relative;
+            background: white;
+            width: 420px;
+            max-width: calc(100% - 24px);
+            padding: 28px 24px 22px;
+            border-radius: 18px;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.18);
+            text-align: center;
+            animation: slideUp 0.25s ease-out;
+        }
+        @keyframes slideUp { from { transform: translateY(18px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .modal-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 30px;
+            height: 30px;
+            border: none;
+            border-radius: 50%;
+            background: #F2F4F7;
+            color: #475467;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+        .modal-btn {
+            background: var(--dark-sage);
+            color: white;
+            border: none;
+            padding: 12px 18px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: 0.2s ease;
+        }
+        .modal-btn:hover {
+            background: #587d45;
+            transform: translateY(-1px);
+        }
     </style>
 </head>
 <body>
@@ -188,6 +243,15 @@ $result = mysqli_query($conn, $sql);
                     <?php endif; ?>
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="successModal" style="display: <?php echo $show_success_modal ? 'flex' : 'none'; ?>;">
+        <div class="modal-pad">
+            <button type="button" class="modal-close" aria-label="Close" onclick="closeSuccessModal();">×</button>
+            <h3 style="margin: 0 0 10px 0; color: var(--dark-sage);">Registration Successful!</h3>
+            <p style="color: #475467; font-size: 0.9rem; margin-bottom: 20px;">The maternal record has been successfully saved.</p>
+            <button type="button" class="modal-btn" onclick="closeSuccessModal();">Close</button>
         </div>
     </div>
 
@@ -510,10 +574,18 @@ $result = mysqli_query($conn, $sql);
         document.getElementById('updateModal').style.display = 'none'; 
     }
 
+    function closeSuccessModal() { 
+        document.getElementById('successModal').style.display = 'none'; 
+    }
+
     window.onclick = function(event) { 
         if (event.target == document.getElementById('updateModal')) { 
             closeModal(); 
         } 
+
+        if (event.target == document.getElementById('successModal')) { 
+            closeSuccessModal(); 
+        }
     }
     
     function toggleTetanusDate() {

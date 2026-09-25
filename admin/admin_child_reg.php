@@ -9,6 +9,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $message = "";
+$show_success_modal = false;
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $user_id = $_SESSION['user_id']; 
@@ -52,7 +53,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if ($stmt = $conn->prepare($sql)) {
         $stmt->bind_param("issssdsssssssssss", $user_id, $baby_name, $gender, $blood_type, $dob, $weight, $height, $pob, $family_no, $address, $barangay, $health_center, $mother, $father, $status, $vaccines, $administered_by);
         if ($stmt->execute()) {
-            $message = "Baby enrolled successfully! " . ($status === "Pending" ? "Pending for admin review." : "");
+            $show_success_modal = true;
         } else {
             $message = "Error: " . $conn->error;
         }
@@ -237,15 +238,55 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         .enroll-btn:hover { background-color: #5c6c44; }
         
-        .success-msg { 
-            color: #166534; 
-            background: #f0fdf4;
-            padding: 10px 15px;
-            border-radius: 2px;
-            font-size: 0.9rem;
-            margin-bottom: 20px;
-            border-left: 3px solid var(--sage-green);
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(16, 24, 40, 0.38);
+            backdrop-filter: blur(4px);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
         }
+        .modal-pad {
+            position: relative;
+            background: white;
+            width: 420px;
+            max-width: calc(100% - 24px);
+            padding: 28px 24px 22px;
+            border-radius: 18px;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.18);
+            text-align: center;
+            animation: slideUp 0.25s ease-out;
+        }
+        @keyframes slideUp { from { transform: translateY(18px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .modal-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 30px;
+            height: 30px;
+            border: none;
+            border-radius: 50%;
+            background: #F2F4F7;
+            color: #475467;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+        .modal-btn {
+            background: var(--sage-green);
+            color: white;
+            border: none;
+            padding: 12px 18px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: 0.2s ease;
+        }
+        .modal-btn:hover { background: #587d45; transform: translateY(-1px); }
 
         @media (max-width: 992px) {
             .form-grid { grid-template-columns: repeat(2, 1fr); }
@@ -275,7 +316,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <div class="form-card">
         <h2>Infant Registration Form</h2>
         
-        <?php if($message) echo "<div class='success-msg'>$message</div>"; ?>
+        <?php if($message) echo "<div style='color:#991b1b; background:#fef2f2; padding:10px 15px; border-radius:2px; font-size:0.9rem; margin-bottom:20px; border-left:3px solid #dc2626;'>$message</div>"; ?>
 
         <form method="POST">
             
@@ -460,6 +501,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     </div>
 </div>
 
+<div class="modal-overlay" id="successModal" style="display: <?php echo $show_success_modal ? 'flex' : 'none'; ?>;">
+    <div class="modal-pad">
+        <button type="button" class="modal-close" aria-label="Close" onclick="closeSuccessModal();">×</button>
+        <h3 style="margin: 0 0 10px 0; color: var(--sage-green);">Registration Successful!</h3>
+        <p style="color: #475467; font-size: 0.9rem; margin-bottom: 20px;">The child has been successfully registered.</p>
+        <button type="button" class="modal-btn" onclick="closeSuccessModal();">Close</button>
+    </div>
+</div>
+
 <script>
     // JavaScript para ipakita o itago ang date picker kapag na-check ang box
     function toggleVaxDate(checkbox, dateId) {
@@ -475,6 +525,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             dateInput.value = ''; // I-clear ang value kapag na-uncheck
         }
     }
+
+    function closeSuccessModal() {
+        document.getElementById('successModal').style.display = 'none';
+    }
+
+    document.getElementById('successModal').addEventListener('click', function(event) {
+        if (event.target === this) closeSuccessModal();
+    });
 
     document.addEventListener('DOMContentLoaded', function() {
         const sidebar = document.getElementById('mainSidebar') || document.querySelector('.sidebar') || document.querySelector('.sidebar-container') || document.getElementById('mySidenav');
