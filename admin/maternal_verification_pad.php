@@ -28,6 +28,55 @@
  * ---------------------------------------------------------------------
  */
 ?>
+<style>
+    .reject-confirm-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 6000;
+        align-items: center;
+        justify-content: center;
+        background: rgba(17, 24, 39, 0.58);
+        padding: 20px;
+        box-sizing: border-box;
+    }
+    .reject-confirm-card {
+        width: 400px;
+        max-width: calc(100% - 24px);
+        padding: 28px 24px 24px;
+        border-radius: 14px;
+        background: #fff;
+        box-shadow: 0 22px 55px rgba(0, 0, 0, 0.22);
+        text-align: center;
+    }
+    .reject-confirm-card h3 {
+        margin: 0 0 16px;
+        color: #344054;
+        font-size: 1.15rem;
+    }
+    .reject-confirm-card p {
+        margin: 0 0 22px;
+        color: #475467;
+        font-size: 0.9rem;
+        line-height: 1.5;
+    }
+    .reject-confirm-actions {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+    }
+    .reject-confirm-actions button {
+        min-width: 74px;
+        padding: 9px 16px;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .reject-cancel-btn { background: #d9e1ea; color: #344054; }
+    .reject-delete-btn { background: #ef4444; color: #fff; }
+    .reject-confirm-actions button:hover { filter: brightness(0.95); }
+</style>
         <div class="left-column">
             <!-- PENDING WORKERS TABLE -->
             <div class="table-container" id="pendingWorkersPad">
@@ -40,8 +89,8 @@
                             <td><?php echo htmlspecialchars($row['first_name'] . " " . $row['last_name']); ?></td>
                             <td><?php echo htmlspecialchars($row['email']); ?></td>
                             <td>
-                                <a href="super_admin_dashboard.php?approve_worker_id=<?php echo $row['id']; ?>" class="btn-approve">APPROVE</a>
-                                <a href="super_admin_dashboard.php?remove_worker_id=<?php echo $row['id']; ?>" class="btn-reject" onclick="return confirm('Reject this worker?')">REJECT</a>
+                                <a href="process_verification.php?approve_worker_id=<?php echo $row['id']; ?>&redirect=super_admin_dashboard.php" class="btn-approve">APPROVE</a>
+                                <a href="process_verification.php?remove_worker_id=<?php echo $row['id']; ?>&redirect=super_admin_dashboard.php" data-record="<?php echo htmlspecialchars($row['first_name'] . ' ' . $row['last_name'], ENT_QUOTES, 'UTF-8'); ?>" class="btn-reject" onclick="openRejectConfirm(this); return false;">REJECT</a>
                             </td>
                         </tr>
                         <?php endwhile; else: echo "<tr><td colspan='3' align='center'>No pending worker accounts.</td></tr>"; endif; ?>
@@ -61,7 +110,7 @@
                             <td><?php echo htmlspecialchars($row['mother_name']); ?></td>
                             <td>
                                 <button type="button" class="btn-approve" onclick='openNewbornModal(<?php echo json_encode($row); ?>)'>REVIEW</button>
-                                <a href="process_verification.php?remove_id=<?php echo $row['id']; ?>&redirect=super_admin_dashboard.php" class="btn-reject" onclick="return confirm('Reject this?')">REJECT</a>
+                                <a href="process_verification.php?remove_id=<?php echo $row['id']; ?>&redirect=super_admin_dashboard.php" data-record="<?php echo htmlspecialchars($row['child_name'], ENT_QUOTES, 'UTF-8'); ?>" class="btn-reject" onclick="openRejectConfirm(this); return false;">REJECT</a>
                             </td>
                         </tr>
                         <?php endwhile; else: echo "<tr><td colspan='3' align='center'>No pending newborn records.</td></tr>"; endif; ?>
@@ -82,7 +131,7 @@
                             <td><?php echo htmlspecialchars($row['display_name']); ?></td>
                             <td>
                                 <button type="button" class="btn-approve" onclick='openVerifyModal(<?php echo json_encode($row); ?>)'>VERIFY & ENROLL</button>
-                                <a href="process_verification.php?remove_preg_id=<?php echo $row['id']; ?>&redirect=super_admin_dashboard.php" class="btn-reject" onclick="return confirm('Reject this registration?')">REJECT</a>
+                                <a href="process_verification.php?remove_preg_id=<?php echo $row['id']; ?>&redirect=super_admin_dashboard.php" data-record="<?php echo htmlspecialchars($row['display_name'], ENT_QUOTES, 'UTF-8'); ?>" class="btn-reject" onclick="openRejectConfirm(this); return false;">REJECT</a>
                             </td>
                         </tr>
                         <?php endwhile; else: echo "<tr><td colspan='2' align='center'>No pending maternal registration.</td></tr>"; endif; ?>
@@ -90,6 +139,16 @@
                 </table>
             </div>
         </div>
+<div class="reject-confirm-overlay" id="rejectConfirmModal" role="dialog" aria-modal="true" aria-labelledby="rejectConfirmTitle">
+    <div class="reject-confirm-card">
+        <h3 id="rejectConfirmTitle">Confirm Delete</h3>
+        <p id="rejectConfirmMessage">Permanently delete this record?</p>
+        <div class="reject-confirm-actions">
+            <button type="button" class="reject-cancel-btn" onclick="closeRejectConfirm();">Cancel</button>
+            <button type="button" class="reject-delete-btn" onclick="confirmRejectDelete();">Delete</button>
+        </div>
+    </div>
+</div>
 <!-- NEWBORN VERIFICATION MODAL -->
 <div id="newbornVerifyModal" class="modal">
     <div class="modal-content" style="width: 750px;">
@@ -593,10 +652,30 @@
         document.getElementById('verifyModal').style.display = 'none';
     }
 
+    let pendingRejectUrl = '';
+
+    function openRejectConfirm(rejectLink) {
+        pendingRejectUrl = rejectLink.href;
+        const recordName = rejectLink.dataset.record || 'this record';
+        document.getElementById('rejectConfirmMessage').textContent = 'Permanently delete ' + recordName + "'s record?";
+        document.getElementById('rejectConfirmModal').style.display = 'flex';
+    }
+
+    function closeRejectConfirm() {
+        document.getElementById('rejectConfirmModal').style.display = 'none';
+        pendingRejectUrl = '';
+    }
+
+    function confirmRejectDelete() {
+        if (pendingRejectUrl) window.location.href = pendingRejectUrl;
+    }
+
     window.onclick = function(event) {
         var nbModal = document.getElementById('newbornVerifyModal');
         var matModal = document.getElementById('verifyModal');
+        var rejectModal = document.getElementById('rejectConfirmModal');
         if (event.target == nbModal) nbModal.style.display = "none";
         if (event.target == matModal) matModal.style.display = "none";
+        if (event.target == rejectModal) closeRejectConfirm();
     }
 </script>

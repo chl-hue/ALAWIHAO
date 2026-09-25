@@ -23,8 +23,13 @@ if (isset($_GET['approve_worker_id'])) {
         $fname = $worker['first_name']; $lname = $worker['last_name'];
         $email = $worker['email']; $pass = $worker['password'];
 
-        $insert_worker = "INSERT INTO health_workers (first_name, last_name, email, password, status, created_at) 
-                         VALUES ('$fname', '$lname', '$email', '$pass', 'Approved', NOW())";
+        $insert_worker = "INSERT INTO health_workers (first_name, last_name, email, password, status, created_at)
+                 VALUES ('$fname', '$lname', '$email', '$pass', 'Approved', NOW())
+                 ON DUPLICATE KEY UPDATE
+                 first_name = VALUES(first_name),
+                 last_name = VALUES(last_name),
+                 password = VALUES(password),
+                 status = 'Approved'";
         
         if (mysqli_query($conn, $insert_worker)) {
             mysqli_query($conn, "UPDATE users SET status = 'Approved' WHERE id = '$id'");

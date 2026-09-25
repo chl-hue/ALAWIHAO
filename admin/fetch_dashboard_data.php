@@ -43,8 +43,8 @@ if (mysqli_num_rows($pw_query) > 0) {
         $pending_workers_html .= '<td>' . htmlspecialchars($row['first_name'] . " " . $row['last_name']) . '</td>';
         $pending_workers_html .= '<td>' . htmlspecialchars($row['email']) . '</td>';
         $pending_workers_html .= '<td>';
-        $pending_workers_html .= '<a href="super_admin_dashboard.php?approve_worker_id=' . $row['id'] . '" class="btn-approve">APPROVE</a> ';
-        $pending_workers_html .= '<a href="super_admin_dashboard.php?remove_worker_id=' . $row['id'] . '" class="btn-reject" onclick="return confirm(\'Reject this worker?\')">REJECT</a>';
+        $pending_workers_html .= '<a href="process_verification.php?approve_worker_id=' . $row['id'] . '&redirect=super_admin_dashboard.php" class="btn-approve">APPROVE</a> ';
+        $pending_workers_html .= '<a href="process_verification.php?remove_worker_id=' . $row['id'] . '&redirect=super_admin_dashboard.php" data-record="' . htmlspecialchars($row['first_name'] . ' ' . $row['last_name'], ENT_QUOTES, 'UTF-8') . '" class="btn-reject" onclick="openRejectConfirm(this); return false;">REJECT</a>';
         $pending_workers_html .= '</td>';
         $pending_workers_html .= '</tr>';
     }
@@ -63,7 +63,7 @@ if (mysqli_num_rows($nb_query) > 0) {
         $pending_newborns_html .= '<td>' . htmlspecialchars($row['mother_name']) . '</td>';
         $pending_newborns_html .= '<td>';
         $pending_newborns_html .= '<button type="button" class="btn-approve" onclick=\'openNewbornModal(' . $json_row . ')\'>REVIEW</button> ';
-        $pending_newborns_html .= '<a href="process_verification.php?remove_id=' . $row['id'] . '&redirect=super_admin_dashboard.php" class="btn-reject" onclick="return confirm(\'Reject this?\')">REJECT</a>';
+        $pending_newborns_html .= '<a href="process_verification.php?remove_id=' . $row['id'] . '&redirect=super_admin_dashboard.php" data-record="' . htmlspecialchars($row['child_name'], ENT_QUOTES, 'UTF-8') . '" class="btn-reject" onclick="openRejectConfirm(this); return false;">REJECT</a>';
         $pending_newborns_html .= '</td>';
         $pending_newborns_html .= '</tr>';
     }
@@ -85,7 +85,7 @@ if (mysqli_num_rows($pm_query) > 0) {
         $pending_maternal_html .= '<td>' . htmlspecialchars($row['display_name']) . '</td>';
         $pending_maternal_html .= '<td>';
         $pending_maternal_html .= '<button type="button" class="btn-approve" onclick=\'openVerifyModal(' . $json_row . ')\'>VERIFY & ENROLL</button> ';
-        $pending_maternal_html .= '<a href="process_verification.php?remove_preg_id=' . $row['id'] . '&redirect=super_admin_dashboard.php" class="btn-reject" onclick="return confirm(\'Reject this registration?\')">REJECT</a>';
+        $pending_maternal_html .= '<a href="process_verification.php?remove_preg_id=' . $row['id'] . '&redirect=super_admin_dashboard.php" data-record="' . htmlspecialchars($row['display_name'], ENT_QUOTES, 'UTF-8') . '" class="btn-reject" onclick="openRejectConfirm(this); return false;">REJECT</a>';
         $pending_maternal_html .= '</td>';
         $pending_maternal_html .= '</tr>';
     }

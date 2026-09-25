@@ -116,6 +116,16 @@ while($row = mysqli_fetch_assoc($result)) {
             font-size: 0.75rem;
             font-weight: bold;
         }
+        .delete-success-message {
+            display: none;
+            color: #166534;
+            background: #f0fdf4;
+            padding: 14px 16px;
+            border: 1px solid #bbf7d0;
+            border-left: 4px solid #3f9142;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
 
         /* Modal Styles */
         .modal { display: none; position: fixed; z-index: 3000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); overflow-y: auto; }
@@ -182,6 +192,7 @@ while($row = mysqli_fetch_assoc($result)) {
 
     <div id="main">
         <div class="records-card">
+            <div id="deleteSuccessMessage" class="delete-success-message">Record successfully deleted.</div>
             <div class="header-section">
                 <h2>Infant Health Records</h2>
                 <div style="display:flex; gap:10px; align-items: center; flex-wrap: wrap;">
@@ -496,7 +507,7 @@ while($row = mysqli_fetch_assoc($result)) {
                 const row = document.getElementById('row_' + currentChildId);
                 if(row) row.remove();
                 closeModal();
-                showCustomAlert("Success", "Record successfully deleted!");
+                document.getElementById('deleteSuccessMessage').style.display = 'block';
             } else { 
                 showCustomAlert("Error", result, true);
             }
