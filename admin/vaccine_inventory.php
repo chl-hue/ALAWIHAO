@@ -10,7 +10,9 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'Admin' && $_SESSION[
 
 $message = "";
 $show_success_modal = false;
+$success_modal_title = "Registration Successful!";
 $success_modal_message = "";
+$success_modal_visible = false;
 
 // ---------------------------------------------------------
 // HANDLE FORM SUBMISSIONS (Add, Update, Delete)
@@ -53,6 +55,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_vaccine'])) {
                 }
 
                 $show_success_modal = true;
+                $success_modal_visible = true;
+                $success_modal_title = "Registration Successful!";
                 $success_modal_message = "Vaccine added successfully!";
                 $message = "Vaccine added successfully!";
             } else {
@@ -100,6 +104,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_vaccine'])) {
                 }
 
                 $show_success_modal = true;
+                $success_modal_visible = true;
+                $success_modal_title = "Registration Successful!";
                 $success_modal_message = "Vaccine updated successfully!";
                 $message = "Vaccine updated successfully!";
             } else {
@@ -117,6 +123,9 @@ if (isset($_GET['delete_id'])) {
     if ($stmt = $conn->prepare($sql)) {
         $stmt->bind_param("i", $delete_id);
         if ($stmt->execute()) {
+            $show_success_modal = true;
+            $success_modal_title = "Deleted Successfully!";
+            $success_modal_message = "The vaccine record has been successfully deleted.";
             $message = "Vaccine deleted successfully!";
         } else {
             $message = "Error deleting record: " . $conn->error;
@@ -609,7 +618,7 @@ for ($i = 1; $i <= 12; $i++) {
                                            '<?= htmlspecialchars($row['received_by'] ?? '', ENT_QUOTES) ?>',
                                            '<?= htmlspecialchars($row['provided_by'] ?? '', ENT_QUOTES) ?>'
                                        )">Edit</a>
-                                    <a href="?delete_id=<?= $row['id'] ?>" class="action-delete" onclick="return confirm('Sigurado ka bang gusto mong idelete ang vaccine na ito?');">Delete</a>
+                                    <a href="#" class="action-delete" onclick="event.preventDefault(); openDeleteModal('<?= $row['id'] ?>');">Delete</a>
                                 </td>
                             </tr>
                         <?php endwhile; ?>
@@ -665,7 +674,7 @@ for ($i = 1; $i <= 12; $i++) {
                                            '<?= htmlspecialchars($row['received_by'] ?? '', ENT_QUOTES) ?>',
                                            '<?= htmlspecialchars($row['provided_by'] ?? '', ENT_QUOTES) ?>'
                                        )">Edit</a>
-                                    <a href="?delete_id=<?= $row['id'] ?>" class="action-delete" onclick="return confirm('Sigurado ka bang gusto mong idelete ang vaccine na ito?');">Delete</a>
+                                    <a href="#" class="action-delete" onclick="event.preventDefault(); openDeleteModal('<?= $row['id'] ?>');">Delete</a>
                                 </td>
                             </tr>
                         <?php endwhile; ?>
@@ -715,14 +724,30 @@ for ($i = 1; $i <= 12; $i++) {
     </div>
 </div>
 
-<div class="modal-overlay" id="successModal" style="<?php echo $show_success_modal ? 'display: flex;' : 'display: none;'; ?>">
+<div class="modal-overlay" id="successModal" data-show="<?php echo $show_success_modal ? '1' : '0'; ?>" style="display: none;">
     <div class="modal-pad">
         <button type="button" class="modal-close" aria-label="Close" onclick="document.getElementById('successModal').style.display='none';">×</button>
-        <h3 style="margin: 0 0 10px 0; color: var(--sage-green); font-size: 2.2rem; font-weight: 700; letter-spacing: -0.02em;">Registration Successful!</h3>
+        <h3 style="margin: 0 0 10px 0; color: var(--sage-green); font-size: 2.2rem; font-weight: 700; letter-spacing: -0.02em;">
+            <?php echo htmlspecialchars($success_modal_title); ?>
+        </h3>
         <p style="color: #718096; font-size: 0.95rem; margin: 0 0 20px 0; line-height: 1.5;">
             <?php echo htmlspecialchars($success_modal_message ?: 'The vaccine inventory record has been successfully updated.'); ?>
         </p>
         <button type="button" class="modal-btn" onclick="document.getElementById('successModal').style.display='none';">Close</button>
+    </div>
+</div>
+
+<div class="modal-overlay" id="deleteModal" style="display: none;">
+    <div class="modal-pad" style="width: 420px;">
+        <button type="button" class="modal-close" aria-label="Close" onclick="document.getElementById('deleteModal').style.display='none';">×</button>
+        <h3 style="margin: 0 0 10px 0; color: var(--sage-green); font-size: 2.2rem; font-weight: 700; letter-spacing: -0.02em;">Delete Vaccine?</h3>
+        <p style="color: #718096; font-size: 0.95rem; margin: 0 0 20px 0; line-height: 1.5;">
+            This action will permanently remove the vaccine record from the inventory.
+        </p>
+        <div style="display: flex; gap: 10px;">
+            <button type="button" class="modal-btn" style="flex: 1; background: #e5e7eb; color: #374151;" onclick="document.getElementById('deleteModal').style.display='none';">Cancel</button>
+            <a id="deleteConfirmBtn" href="#" class="modal-btn" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; text-decoration: none;">Delete</a>
+        </div>
     </div>
 </div>
 
@@ -881,6 +906,19 @@ for ($i = 1; $i <= 12; $i++) {
         
         document.getElementById('editModal').style.display = 'block';
     }
+
+    function openDeleteModal(id) {
+        const deleteLink = document.getElementById('deleteConfirmBtn');
+        deleteLink.setAttribute('href', '?delete_id=' + id);
+        document.getElementById('deleteModal').style.display = 'flex';
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const successModal = document.getElementById('successModal');
+        if (successModal && successModal.dataset.show === '1') {
+            successModal.style.display = 'flex';
+        }
+    });
 
     // Chart.js Setup
     document.addEventListener("DOMContentLoaded", function() {
