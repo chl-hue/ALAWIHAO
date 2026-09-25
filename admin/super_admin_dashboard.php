@@ -9,12 +9,38 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Super Admin') {
 }
 
 // --- WORKER APPROVAL / REJECTION ---
-// Inalis na ang lokal na handler dito. Ang approve_worker_id / remove_worker_id
-// ay dapat na pumunta sa process_verification.php (mas kumpleto ang logic doon:
-// hinahawakan din nito ang health_workers table, hindi lang ang users table).
-// Sa verification pad(s), gawin ang links/buttons na:
-//   process_verification.php?approve_worker_id=...&redirect=super_admin_dashboard.php
-//   process_verification.php?remove_worker_id=...&redirect=super_admin_dashboard.php
+if (isset($_GET['approve_worker_id'])) {
+    $id = mysqli_real_escape_string($conn, $_GET['approve_worker_id']);
+    $worker = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM users WHERE id = '$id' AND role = 'Admin'"));
+
+    if ($worker) {
+        $fname = $worker['first_name'];
+        $lname = $worker['last_name'];
+        $email = $worker['email'];
+        $pass = $worker['password'];
+
+        $insert_sql = "INSERT INTO health_workers (first_name, last_name, email, password, status, created_at) VALUES ('$fname', '$lname', '$email', '$pass', 'Approved', NOW())";
+        if (mysqli_query($conn, $insert_sql)) {
+            mysqli_query($conn, "UPDATE users SET status = 'Approved' WHERE id = '$id'");
+            header("Location: super_admin_dashboard.php?msg=WorkerApprovedAndRecorded");
+            exit();
+        }
+    }
+}
+
+if (isset($_GET['remove_worker_id'])) {
+    $id = mysqli_real_escape_string($conn, $_GET['remove_worker_id']);
+    $worker = mysqli_fetch_assoc(mysqli_query($conn, "SELECT email FROM users WHERE id = '$id'"));
+
+    if ($worker) {
+        $email = mysqli_real_escape_string($conn, $worker['email']);
+        mysqli_query($conn, "DELETE FROM health_workers WHERE email = '$email'");
+    }
+
+    mysqli_query($conn, "DELETE FROM users WHERE id = '$id'");
+    header("Location: super_admin_dashboard.php?msg=Removed");
+    exit();
+}
 
 // Para sa notification badge sa sidebar
 $pending_workers_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as t FROM users WHERE role='Admin' AND status='Pending'"))['t'] ?? 0;

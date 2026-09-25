@@ -116,25 +116,56 @@ $newGeneratedID = $currentYear . '-' . $formattedNumber;
             display: none;
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.4);
+            background: rgba(16, 24, 40, 0.38);
+            backdrop-filter: blur(4px);
             z-index: 2000;
             justify-content: center;
             align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
         }
         .modal-pad {
+            position: relative;
             background: white;
-            width: 400px;
-            padding: 30px;
-            border-radius: 20px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+            width: 420px;
+            max-width: calc(100% - 24px);
+            padding: 28px 24px 22px;
+            border-radius: 18px;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.18);
             text-align: center;
-            animation: slideUp 0.3s ease-out;
+            animation: slideUp 0.25s ease-out;
         }
-        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes slideUp { from { transform: translateY(18px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         .success-icon {
-            font-size: 3rem;
-            color: #48BB78;
-            margin-bottom: 10px;
+            display: none;
+        }
+        .modal-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 30px;
+            height: 30px;
+            border: none;
+            border-radius: 50%;
+            background: #F2F4F7;
+            color: #475467;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+        .modal-btn {
+            background: var(--dark-sage);
+            color: white;
+            border: none;
+            padding: 12px 18px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: 0.2s ease;
+        }
+        .modal-btn:hover {
+            background: #587d45;
+            transform: translateY(-1px);
         }
     </style>
 </head>
@@ -212,10 +243,10 @@ $newGeneratedID = $currentYear . '-' . $formattedNumber;
 <!-- SUCCESS POP-UP MODAL -->
 <div class="modal-overlay" id="successModal">
     <div class="modal-pad">
-        <div class="success-icon">✔️</div>
+        <button type="button" class="modal-close" aria-label="Close" onclick="document.getElementById('successModal').style.display='none';">×</button>
         <h3 style="margin: 0 0 10px 0; color: var(--dark-sage);">Registration Successful!</h3>
         <p style="color: var(--text-gray); font-size: 0.9rem; margin-bottom: 20px;" id="successMsgText">The health worker account has been successfully registered.</p>
-        <button onclick="window.location.href='<?php echo htmlspecialchars($redirectTarget, ENT_QUOTES); ?>'" style="background: var(--dark-sage); color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; width: 100%;"><?php echo ($redirectTarget !== 'admin/admin_health_workers.php') ? 'Go to Pending Worker Verification' : 'View Personnel Directory'; ?></button>
+        <button type="button" class="modal-btn" onclick="window.location.href='<?php echo htmlspecialchars($redirectTarget, ENT_QUOTES); ?>'"><?php echo ($redirectTarget !== 'admin/admin_health_workers.php') ? 'Go to Pending Worker Verification' : 'View Personnel Directory'; ?></button>
     </div>
 </div>
 
