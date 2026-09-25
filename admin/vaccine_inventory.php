@@ -9,6 +9,8 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'Admin' && $_SESSION[
 }
 
 $message = "";
+$show_success_modal = false;
+$success_modal_message = "";
 
 // ---------------------------------------------------------
 // HANDLE FORM SUBMISSIONS (Add, Update, Delete)
@@ -50,6 +52,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_vaccine'])) {
                     $log_stmt->close();
                 }
 
+                $show_success_modal = true;
+                $success_modal_message = "Vaccine added successfully!";
                 $message = "Vaccine added successfully!";
             } else {
                 $message = "Error: " . $conn->error;
@@ -95,6 +99,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_vaccine'])) {
                     $log_stmt->close();
                 }
 
+                $show_success_modal = true;
+                $success_modal_message = "Vaccine updated successfully!";
                 $message = "Vaccine updated successfully!";
             } else {
                 $message = "Error updating: " . $conn->error;
@@ -360,6 +366,66 @@ for ($i = 1; $i <= 12; $i++) {
             overflow-y: auto;
         }
 
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(16, 24, 40, 0.38);
+            backdrop-filter: blur(4px);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .modal-pad {
+            position: relative;
+            background: white;
+            width: 420px;
+            max-width: calc(100% - 24px);
+            padding: 28px 22px 22px;
+            border-radius: 18px;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.18);
+            text-align: center;
+            animation: slideUp 0.25s ease-out;
+        }
+        @keyframes slideUp { from { transform: translateY(18px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .modal-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 30px;
+            height: 30px;
+            border: none;
+            border-radius: 50%;
+            background: #F2F4F7;
+            color: #475467;
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            line-height: 1;
+        }
+        .modal-btn {
+            background: var(--sage-green);
+            color: white;
+            border: none;
+            padding: 14px 18px;
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            width: 100%;
+            transition: 0.2s ease;
+            margin-top: 10px;
+            font-size: 1.05rem;
+            box-sizing: border-box;
+        }
+        .modal-btn:hover {
+            background: #5d7347;
+            transform: translateY(-1px);
+        }
+
         .modal-content {
             background-color: #fff;
             margin: 3% auto;
@@ -384,9 +450,64 @@ for ($i = 1; $i <= 12; $i++) {
             font-weight: bold; margin-top: 5px;
         }
         
-        .success-msg {
-            color: #166534; background: #f0fdf4; padding: 10px;
-            border-left: 3px solid var(--sage-green); margin-bottom: 15px;
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(16, 24, 40, 0.38);
+            backdrop-filter: blur(4px);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .modal-pad {
+            position: relative;
+            background: white;
+            width: 420px;
+            max-width: calc(100% - 24px);
+            padding: 28px 22px 22px;
+            border-radius: 18px;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.18);
+            text-align: center;
+            animation: slideUp 0.25s ease-out;
+        }
+        @keyframes slideUp { from { transform: translateY(18px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .modal-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 30px;
+            height: 30px;
+            border: none;
+            border-radius: 50%;
+            background: #F2F4F7;
+            color: #475467;
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            line-height: 1;
+        }
+        .modal-btn {
+            background: var(--sage-green);
+            color: white;
+            border: none;
+            padding: 14px 18px;
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            width: 100%;
+            transition: 0.2s ease;
+            margin-top: 10px;
+            font-size: 1.05rem;
+            box-sizing: border-box;
+        }
+        .modal-btn:hover {
+            background: #5d7347;
+            transform: translateY(-1px);
         }
 
         .action-links a { font-weight: bold; text-decoration: none; margin-right: 10px; }
@@ -413,8 +534,6 @@ for ($i = 1; $i <= 12; $i++) {
                 <button class="btn-add" onclick="document.getElementById('addModal').style.display='block'">+ Add New Vaccine</button>
             </div>
         </div>
-
-        <?php if(!empty($message)) echo "<div class='success-msg'>$message</div>"; ?>
 
         <!-- DASHBOARD SUMMARY & CHART -->
         <div class="dashboard-top">
@@ -593,6 +712,17 @@ for ($i = 1; $i <= 12; $i++) {
             </table>
         </div>
 
+    </div>
+</div>
+
+<div class="modal-overlay" id="successModal" style="<?php echo $show_success_modal ? 'display: flex;' : 'display: none;'; ?>">
+    <div class="modal-pad">
+        <button type="button" class="modal-close" aria-label="Close" onclick="document.getElementById('successModal').style.display='none';">×</button>
+        <h3 style="margin: 0 0 10px 0; color: var(--sage-green); font-size: 2.2rem; font-weight: 700; letter-spacing: -0.02em;">Registration Successful!</h3>
+        <p style="color: #718096; font-size: 0.95rem; margin: 0 0 20px 0; line-height: 1.5;">
+            <?php echo htmlspecialchars($success_modal_message ?: 'The vaccine inventory record has been successfully updated.'); ?>
+        </p>
+        <button type="button" class="modal-btn" onclick="document.getElementById('successModal').style.display='none';">Close</button>
     </div>
 </div>
 
