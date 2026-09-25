@@ -1,0 +1,906 @@
+<?php
+session_start();
+include '../db_connect.php';
+
+if (!isset($_SESSION['admin_id']) && !isset($_SESSION['user_id'])) {
+    header("Location: login.php");
+    exit();
+}
+
+$admin_id = (int)($_SESSION['admin_id'] ?? $_SESSION['user_id']);
+$message = "";
+
+/* GET ADMIN DATA */
+$stmt = $conn->prepare("SELECT * FROM users WHERE id = ?");
+$stmt->bind_param("i", $admin_id);
+$stmt->execute();
+$result = $stmt->get_result();
+
+if (!$result || $result->num_rows === 0) {
+    die("Admin account not found.");
+}
+
+$admin = $result->fetch_assoc();
+$stmt->close();
+
+/* UPDATE PROFILE */
+if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['update_profile'])) {
+    $first_name = trim($_POST['first_name'] ?? '');
+    $last_name = trim($_POST['last_name'] ?? '');
+    $email = trim($_POST['email'] ?? '');
+    $contact = trim($_POST['contact'] ?? '');
+    $address = trim($_POST['address'] ?? '');
+
+    if ($first_name === '' || $last_name === '' || $email === '') {
+        $message = "<div class='alert error'>Please complete all required profile information.</div>";
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $message = "<div class='alert error'>Please enter a valid email address.</div>";
+    } else {
+        $check = $conn->prepare("SELECT id FROM users WHERE email = ? AND id != ?");
+        $check->bind_param("si", $email, $admin_id);
+        $check->execute();
+        $check_result = $check->get_result();
+
+        if ($check_result->num_rows > 0) {
+            $message = "<div class='alert error'>That email address is already being used by another account.</div>";
+        } else {
+            $stmt = $conn->prepare("UPDATE users SET first_name = ?, last_name = ?, email = ?, contact_number = ?, address = ? WHERE id = ?");
+            $stmt->bind_param("sssssi", $first_name, $last_name, $email, $contact, $address, $admin_id);
+
+            if ($stmt->execute()) {
+                $admin['first_name'] = $first_name;
+                $admin['last_name'] = $last_name;
+                $admin['email'] = $email;
+                $admin['contact_number'] = $contact;
+                $admin['address'] = $address;
+
+                $message = "<div class='alert success'>Profile updated successfully! Your new email is now also your recovery email.</div>";
+            } else {
+                $message = "<div class='alert error'>Update failed: " . htmlspecialchars($conn->error) . "</div>";
+            }
+
+            $stmt->close();
+        }
+
+        $check->close();
+    }
+}
+
+/* UPDATE RECOVERY EMAIL */
+if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['update_recovery'])) {
+    $new_recovery_email = trim($_POST['recovery_email'] ?? '');
+    $recovery_password = $_POST['recovery_password'] ?? '';
+
+    if ($new_recovery_email === '') {
+        $message = "<div class='alert error'>Please enter your new email address.</div>";
+    } elseif (!filter_var($new_recovery_email, FILTER_VALIDATE_EMAIL)) {
+        $message = "<div class='alert error'>Please enter a valid email address.</div>";
+    } elseif ($recovery_password === '') {
+        $message = "<div class='alert error'>Please enter your current password.</div>";
+    } elseif (strcasecmp($new_recovery_email, $admin['email'] ?? '') === 0) {
+        $message = "<div class='alert error'>The new email is the same as your current email.</div>";
+    } else {
+        $check = $conn->prepare("SELECT id FROM users WHERE email = ? AND id != ?");
+        $check->bind_param("si", $new_recovery_email, $admin_id);
+        $check->execute();
+        $check_result = $check->get_result();
+
+        if ($check_result->num_rows > 0) {
+            $message = "<div class='alert error'>That email address is already being used by another account.</div>";
+        } else {
+            $db_pass = $admin['password'] ?? '';
+            $is_match = false;
+
+            if (!empty($db_pass) && password_verify($recovery_password, $db_pass)) {
+                $is_match = true;
+            } elseif (!empty($db_pass) && hash_equals($db_pass, $recovery_password)) {
+                $is_match = true;
+            }
+
+            if (!$is_match) {
+                $message = "<div class='alert error'>Incorrect current password. Email was not changed.</div>";
+            } else {
+                $stmt = $conn->prepare("UPDATE users SET email = ? WHERE id = ?");
+                $stmt->bind_param("si", $new_recovery_email, $admin_id);
+
+                if ($stmt->execute()) {
+                    $admin['email'] = $new_recovery_email;
+
+                    $message = "<div class='alert success'>Recovery email updated successfully! Your new email is now your login and recovery email.</div>";
+                } else {
+                    $message = "<div class='alert error'>Email update failed: " . htmlspecialchars($conn->error) . "</div>";
+                }
+
+                $stmt->close();
+            }
+        }
+
+        $check->close();
+    }
+}
+
+/* UPDATE PASSWORD */
+if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['update_security'])) {
+    $current_password = $_POST['current_password'] ?? '';
+    $new_password = $_POST['new_password'] ?? '';
+    $confirm_password = $_POST['confirm_password'] ?? '';
+
+    if ($current_password === '') {
+        $message = "<div class='alert error'>Please enter your current password.</div>";
+    } elseif ($new_password === '') {
+        $message = "<div class='alert error'>Please enter a new password.</div>";
+    } elseif ($confirm_password === '') {
+        $message = "<div class='alert error'>Please confirm your new password.</div>";
+    } elseif ($new_password !== $confirm_password) {
+        $message = "<div class='alert error'>New passwords do not match!</div>";
+    } elseif (strlen($new_password) < 8) {
+        $message = "<div class='alert error'>New password must be at least 8 characters long.</div>";
+    } elseif (!preg_match('/[A-Z]/', $new_password)) {
+        $message = "<div class='alert error'>New password must contain at least one uppercase letter (e.g., A-Z).</div>";
+    } elseif (!preg_match('/[a-z]/', $new_password)) {
+        $message = "<div class='alert error'>New password must contain at least one lowercase letter (e.g., a-z).</div>";
+    } elseif (!preg_match('/[0-9]/', $new_password)) {
+        $message = "<div class='alert error'>New password must contain at least one number (e.g., 0-9).</div>";
+    } else {
+        $db_pass = $admin['password'] ?? '';
+        $is_match = false;
+
+        if (!empty($db_pass) && password_verify($current_password, $db_pass)) {
+            $is_match = true;
+        } elseif (!empty($db_pass) && hash_equals($db_pass, $current_password)) {
+            $is_match = true;
+        }
+
+        if ($is_match) {
+            $stmt = $conn->prepare("UPDATE users SET password = ? WHERE id = ?");
+            $stmt->bind_param("si", $new_password, $admin_id);
+
+            if ($stmt->execute()) {
+                $admin['password'] = $new_password;
+                $message = "<div class='alert success'>Password updated successfully!</div>";
+            } else {
+                $message = "<div class='alert error'>Password update failed: " . htmlspecialchars($conn->error) . "</div>";
+            }
+
+            $stmt->close();
+        } else {
+            $message = "<div class='alert error'>Incorrect current password!</div>";
+        }
+    }
+}
+
+/* DELETE ACCOUNT */
+if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['delete_account'])) {
+    $delete_password = $_POST['delete_password'] ?? '';
+    $db_pass = $admin['password'] ?? '';
+    $is_match = false;
+
+    if (!empty($db_pass) && password_verify($delete_password, $db_pass)) {
+        $is_match = true;
+    } elseif (!empty($db_pass) && hash_equals($db_pass, $delete_password)) {
+        $is_match = true;
+    }
+
+    if ($is_match) {
+        $stmt = $conn->prepare("DELETE FROM users WHERE id = ?");
+        $stmt->bind_param("i", $admin_id);
+
+        if ($stmt->execute()) {
+            session_destroy();
+            header("Location: login.php?deleted=success");
+            exit();
+        } else {
+            $message = "<div class='alert error'>Deletion failed: " . htmlspecialchars($conn->error) . "</div>";
+        }
+
+        $stmt->close();
+    } else {
+        $message = "<div class='alert error'>Incorrect password! Account deletion aborted.</div>";
+    }
+}
+?>
+<!DOCTYPE html>
+<html lang="fil">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Account Settings & Profile | Alawihao Health Center</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+:root {
+    --green: #2d5016;
+    --accent: #5a7c3a;
+    --light: #8fbf5a;
+    --bg: #f8fffb;
+    --white: #ffffff;
+    --text: #333333;
+    --muted: #666666;
+    --sidebar-width: 260px;
+    --border-color: #edf2ed;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+}
+
+.progress-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 4px;
+    background: var(--light);
+    width: 0%;
+    z-index: 9999;
+    transition: width 0.1s;
+}
+
+.sidebar-container {
+    width: var(--sidebar-width) !important;
+    min-width: var(--sidebar-width) !important;
+    height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 300;
+    overflow-y: auto;
+    transition: transform 0.3s ease;
+}
+
+body.sidebar-closed .sidebar-container {
+    transform: translateX(-100%);
+}
+
+.topbar {
+    background: var(--white);
+    border-bottom: 3px solid var(--green);
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    position: sticky;
+    top: 0;
+    z-index: 200;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    margin-left: var(--sidebar-width);
+    width: calc(100% - var(--sidebar-width));
+    transition: margin-left 0.3s ease, width 0.3s ease;
+}
+
+body.sidebar-closed .topbar {
+    margin-left: 0 !important;
+    width: 100% !important;
+}
+
+.topbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    min-width: 0;
+    flex-shrink: 0;
+}
+
+.topbar .hamburger-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--green);
+    font-size: 20px;
+    padding: 4px 8px;
+    border-radius: 8px;
+    transition: background 0.2s;
+    display: none;
+    flex-shrink: 0;
+}
+
+body.sidebar-closed .topbar .hamburger-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.topbar .hamburger-btn:hover {
+    background: #f0f4f0;
+}
+
+.topbar .logo-img {
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--green);
+    background: #eef2ee;
+    flex-shrink: 0;
+}
+
+.topbar .page-label {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--green);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#main {
+    margin-left: var(--sidebar-width);
+    width: calc(100% - var(--sidebar-width));
+    transition: margin-left 0.3s ease, width 0.3s ease;
+    padding: 30px 24px 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: calc(100vh - 70px);
+}
+
+body.sidebar-closed #main {
+    margin-left: 0 !important;
+    width: 100% !important;
+}
+
+.settings-container {
+    width: 100%;
+    max-width: 700px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+.settings-card {
+    background: var(--white);
+    width: 100%;
+    padding: 35px 40px;
+    border-radius: 20px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.06);
+    border: 1px solid #eef2ee;
+}
+
+.profile-card-header {
+    border-top: 6px solid var(--green);
+}
+
+.settings-section-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--green);
+    margin-bottom: 20px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--border-color);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    width: 100%;
+}
+
+.form-group {
+    margin-bottom: 20px;
+    width: 100%;
+}
+
+label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    color: var(--green);
+    font-size: 0.95rem;
+}
+
+.info-value {
+    font-size: 1.05rem;
+    color: #333;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 5px;
+    width: 100%;
+}
+
+.edit-input,
+.settings-input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    box-sizing: border-box;
+    font-family: inherit;
+    font-size: 1rem;
+    transition: border-color 0.2s;
+}
+
+.edit-input {
+    display: none;
+}
+
+.edit-input:focus,
+.settings-input:focus {
+    outline: none;
+    border-color: var(--green);
+}
+
+.field-note {
+    display: block;
+    margin-top: 6px;
+    color: var(--muted);
+    font-size: 0.82rem;
+    line-height: 1.4;
+}
+
+.button-group {
+    display: flex;
+    gap: 12px;
+    margin-top: 25px;
+    width: 100%;
+}
+
+.btn {
+    padding: 12px 25px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    border: none;
+    transition: 0.2s;
+    text-align: center;
+    font-size: 1rem;
+}
+
+.btn-edit {
+    background: var(--green);
+    color: white;
+    flex: 1;
+}
+
+.btn-edit:hover {
+    background: var(--accent);
+}
+
+.btn-save {
+    background: var(--accent);
+    color: white;
+    flex: 1;
+    display: none;
+}
+
+.btn-save:hover {
+    background: var(--green);
+}
+
+.btn-cancel {
+    background: #e2e8f0;
+    color: #475569;
+    flex: 1;
+    display: none;
+}
+
+.btn-cancel:hover {
+    background: #cbd5e1;
+}
+
+.btn-primary-action {
+    background: var(--green);
+    color: white;
+    width: 100%;
+}
+
+.btn-primary-action:hover {
+    background: var(--accent);
+}
+
+.recovery-text {
+    font-size: 0.9rem;
+    color: var(--muted);
+    line-height: 1.5;
+    margin-bottom: 20px;
+    width: 100%;
+}
+
+.recovery-email-box {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #d9e3d9;
+    border-radius: 8px;
+    background: #f8fbf8;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1rem;
+}
+
+.recovery-email-box i {
+    color: var(--green);
+}
+
+.recovery-info {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px;
+    background: #f0f7ed;
+    border-radius: 8px;
+    color: var(--muted);
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+.recovery-info i {
+    color: var(--green);
+    margin-top: 2px;
+}
+
+.danger-card {
+    border: 1px solid #FED7D7;
+    background-color: #FFF5F5;
+}
+
+.danger-title {
+    color: #E53E3E;
+    border-bottom: 2px solid #FED7D7;
+}
+
+.danger-text {
+    font-size: 0.9rem;
+    color: #718096;
+    margin-bottom: 20px;
+    line-height: 1.5;
+    width: 100%;
+}
+
+.btn-danger {
+    background-color: #E53E3E;
+    color: #FFFFFF;
+    width: 100%;
+}
+
+.btn-danger:hover {
+    background-color: #C53030;
+}
+
+.alert {
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    text-align: center;
+    font-weight: 500;
+    width: 100%;
+}
+
+.success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+@media (max-width: 768px) {
+    :root {
+        --sidebar-width: 260px;
+    }
+
+    .topbar {
+        margin-left: 0;
+        width: 100%;
+    }
+
+    #main {
+        margin-left: 0;
+        width: 100%;
+        padding: 20px 15px 40px;
+    }
+
+    .sidebar-container {
+        transform: translateX(-100%);
+    }
+
+    body:not(.sidebar-closed) .sidebar-container {
+        transform: translateX(0);
+    }
+
+    .topbar .hamburger-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .settings-card {
+        padding: 25px 20px;
+    }
+
+    .button-group {
+        flex-direction: column;
+    }
+}
+</style>
+</head>
+<body class="sidebar-closed">
+
+<div id="progressBar" class="progress-bar"></div>
+
+<div class="sidebar-container">
+    <?php include 'admin_sidebar.php'; ?>
+</div>
+
+<div class="topbar">
+    <div class="topbar-brand">
+        <button class="hamburger-btn" onclick="toggleSidebar()" title="Toggle Sidebar">
+            <i class="fa fa-bars"></i>
+        </button>
+        <img src="../images/logo.jpg" alt="Brgy Logo" class="logo-img">
+    </div>
+    <span class="page-label">Account Settings & Profile</span>
+</div>
+
+<div id="main">
+    <div class="settings-container">
+
+        <?php echo $message; ?>
+
+        <!-- PROFILE INFORMATION CARD -->
+        <div class="settings-card profile-card-header">
+            <div class="settings-section-title">
+                <i class="fa fa-user-circle"></i> Admin Profile Information
+            </div>
+
+            <form id="profileForm" method="POST">
+
+                <div class="form-group">
+                    <label>First Name</label>
+                    <div class="info-value">
+                        <?php echo htmlspecialchars($admin['first_name'] ?? ''); ?>
+                    </div>
+                    <input type="text" name="first_name" class="edit-input" value="<?php echo htmlspecialchars($admin['first_name'] ?? ''); ?>" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Last Name</label>
+                    <div class="info-value">
+                        <?php echo htmlspecialchars($admin['last_name'] ?? ''); ?>
+                    </div>
+                    <input type="text" name="last_name" class="edit-input" value="<?php echo htmlspecialchars($admin['last_name'] ?? ''); ?>" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <div class="info-value">
+                        <?php echo htmlspecialchars($admin['email'] ?? ''); ?>
+                    </div>
+                    <input type="email" name="email" class="edit-input" value="<?php echo htmlspecialchars($admin['email'] ?? ''); ?>" required>
+                    <small class="field-note">
+                        This email address is also used for account recovery.
+                    </small>
+                </div>
+
+                <div class="form-group">
+                    <label>Contact Number</label>
+                    <div class="info-value">
+                        <?php echo htmlspecialchars($admin['contact_number'] ?? 'Not set'); ?>
+                    </div>
+                    <input type="text" name="contact" class="edit-input" value="<?php echo htmlspecialchars($admin['contact_number'] ?? ''); ?>">
+                </div>
+
+                <div class="form-group">
+                    <label>Home Address</label>
+                    <div class="info-value">
+                        <?php echo htmlspecialchars($admin['address'] ?? 'Not set'); ?>
+                    </div>
+                    <input type="text" name="address" class="edit-input" value="<?php echo htmlspecialchars($admin['address'] ?? ''); ?>">
+                </div>
+
+                <div class="button-group">
+                    <button type="button" id="editBtn" class="btn btn-edit" onclick="toggleEdit(true)">
+                        <i class="fa fa-pen-to-square"></i> Edit Profile
+                    </button>
+
+                    <button type="submit" name="update_profile" id="saveBtn" class="btn btn-save">
+                        <i class="fa fa-check"></i> Save Changes
+                    </button>
+
+                    <button type="button" id="cancelBtn" class="btn btn-cancel" onclick="toggleEdit(false)">
+                        <i class="fa fa-xmark"></i> Cancel
+                    </button>
+                </div>
+
+            </form>
+        </div>
+
+        <!-- SECURITY CARD -->
+        <div class="settings-card">
+            <form method="POST">
+
+                <div class="settings-section-title">
+                    <i class="fa fa-shield-halved"></i> Security Credentials
+                </div>
+
+                <div class="form-group">
+                    <label for="current_password">Current Password</label>
+                    <input type="password" id="current_password" name="current_password" class="settings-input" placeholder="Enter current password" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="new_password">New Password</label>
+                    <input type="password" id="new_password" name="new_password" class="settings-input no-copy-paste" placeholder="Enter new password" required oncopy="return false;" onpaste="return false;" oncut="return false;" oncontextmenu="return false;">
+                    <small class="field-note">
+                        Must be at least 8 characters long, include at least one uppercase letter, one lowercase letter, and one number.
+                    </small>
+                </div>
+
+                <div class="form-group">
+                    <label for="confirm_password">Confirm Password</label>
+                    <input type="password" id="confirm_password" name="confirm_password" class="settings-input no-copy-paste" placeholder="Confirm new password" required oncopy="return false;" onpaste="return false;" oncut="return false;" oncontextmenu="return false;">
+                </div>
+
+                <div style="margin-top: 25px;">
+                    <button type="submit" name="update_security" class="btn btn-primary-action">
+                        Save Security & Preferences
+                    </button>
+                </div>
+
+            </form>
+        </div>
+
+<!-- ACCOUNT RECOVERY CARD -->
+        <div class="settings-card">
+
+            <div class="settings-section-title">
+                <i class="fa fa-envelope-circle-check"></i> Account Recovery
+            </div>
+
+            <p class="recovery-text">
+                Your account email is also your recovery email. You can change it below.
+                Once updated, the new email will be used for login and password recovery.
+            </p>
+
+            <!-- Tanging isang form tag na lang na patungong send_otp.php -->
+            <form action="send_otp.php" method="POST">
+
+                <div class="form-group">
+                    <label>Current Email</label>
+                    <div class="recovery-email-box">
+                        <i class="fa fa-envelope"></i>
+                        <span>
+                            <?php echo htmlspecialchars($admin['email'] ?? ''); ?>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="recovery_email">New Email Address</label>
+                    <input
+                        type="email"
+                        id="recovery_email"
+                        name="recovery_email"
+                        class="settings-input"
+                        placeholder="Enter your new email address"
+                        required
+                    >
+                    <small class="field-note">
+                        This will become your new login and recovery email.
+                    </small>
+                </div>
+
+                <div class="form-group">
+                    <label for="recovery_password">Current Password</label>
+                    <input
+                        type="password"
+                        id="recovery_password"
+                        name="recovery_password"
+                        class="settings-input"
+                        placeholder="Enter your current password"
+                        required
+                    >
+                </div>
+
+                <button type="submit" name="update_recovery" class="btn btn-primary-action">
+                    <i class="fa fa-envelope-circle-check"></i>
+                    Send OTP Verification
+                </button>
+
+            </form>
+
+            <div class="recovery-info" style="margin-top: 20px;">
+                <i class="fa fa-circle-info"></i>
+                <span>
+                    A verification code will be sent to your new email address.
+                    Your password will remain unchanged.
+                </span>
+            </div>
+
+        </div>
+
+        <!-- DANGER ZONE -->
+        <div class="settings-card danger-card">
+
+            <div class="settings-section-title danger-title">
+                <i class="fa fa-triangle-exclamation"></i> Danger Zone
+            </div>
+
+            <p class="danger-text">
+                Once you delete this admin account, system administration access from this profile will be permanently revoked.
+            </p>
+
+            <form method="POST" onsubmit="return confirm('Are you sure you want to permanently delete this admin account? This action cannot be undone.');">
+
+                <div class="form-group">
+                    <label for="delete_password" style="color: #E53E3E;">
+                        Enter Password to Confirm Deletion
+                    </label>
+
+                    <input
+                        type="password"
+                        id="delete_password"
+                        name="delete_password"
+                        class="settings-input"
+                        placeholder="Type your password here"
+                        required
+                        style="border-color: #FEB2B2;"
+                    >
+                </div>
+
+                <button type="submit" name="delete_account" class="btn btn-danger">
+                    Delete Admin Account
+                </button>
+
+            </form>
+
+        </div>
+
+    </div>
+</div>
+
+<script>
+window.addEventListener('scroll', () => {
+    const scrollTop = window.scrollY;
+    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    const progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+    document.getElementById('progressBar').style.width = progress + '%';
+});
+
+function toggleSidebar() {
+    document.body.classList.toggle('sidebar-closed');
+}
+
+function toggleEdit(isEditing) {
+    const values = document.querySelectorAll('.info-value');
+    const inputs = document.querySelectorAll('.edit-input');
+    const editBtn = document.getElementById('editBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+
+    if (isEditing) {
+        values.forEach(v => v.style.display = 'none');
+        inputs.forEach(i => i.style.display = 'block');
+        editBtn.style.display = 'none';
+        saveBtn.style.display = 'flex';
+        cancelBtn.style.display = 'flex';
+    } else {
+        values.forEach(v => v.style.display = 'block');
+        inputs.forEach(i => i.style.display = 'none');
+        editBtn.style.display = 'flex';
+        saveBtn.style.display = 'none';
+        cancelBtn.style.display = 'none';
+    }
+}
+
+// Proteksyon laban sa copy, paste, cut, at right-click sa password fields
+document.querySelectorAll('.no-copy-paste').forEach(input => {
+    ['copy', 'paste', 'cut', 'contextmenu'].forEach(event => {
+        input.addEventListener(event, (e) => e.preventDefault());
+    });
+});
+</script>
+
+<?php include 'footer.php'; ?>
+
+</body>
+</html>
