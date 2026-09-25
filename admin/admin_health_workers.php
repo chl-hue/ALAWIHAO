@@ -39,7 +39,7 @@ if (!$result) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Personnel Directory | Alawihao Center</title>
+    <title>Personnel Directory | Alawiwerss Center</title>
     <style>
         :root { 
             --sage: #8DAE74; 
