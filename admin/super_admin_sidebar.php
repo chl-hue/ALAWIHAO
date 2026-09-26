@@ -204,6 +204,7 @@ $base_url = "/FINAL_CAPSTONE/admin/";
     .sidebar.is-hidden ~ #main {
         margin-left: 0 !important;
     }
+
 </style>
 </head>
 <body>

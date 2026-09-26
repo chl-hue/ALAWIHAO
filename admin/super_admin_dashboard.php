@@ -9,6 +9,12 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Super Admin') {
 }
 
 $show_delete_success = isset($_GET['msg']) && $_GET['msg'] === 'Removed';
+$approval_messages = [
+    'WorkerApprovedAndRecorded' => 'Staff worker approved successfully.',
+    'ApprovedAndRecorded' => 'Newborn registration approved successfully.',
+    'MaternalApproved' => 'Maternal registration verified and enrolled successfully.'
+];
+$approval_message = $approval_messages[$_GET['msg'] ?? ''] ?? '';
 
 function notify_schedule_user($conn, $patient_name, $schedule_id, $title, $message, $type) {
     $user_id = 0;
@@ -475,6 +481,12 @@ if (check_table_exists($conn, 'schedules')) {
     <?php if ($show_delete_success): ?>
     <div style="background:#f0fdf4; color:#166534; padding:14px 16px; border:1px solid #bbf7d0; border-left:4px solid #3f9142; border-radius:6px; margin-bottom:20px;">
         Record deleted successfully.
+    </div>
+    <?php endif; ?>
+
+    <?php if ($approval_message !== ''): ?>
+    <div style="background:#f0fdf4; color:#166534; padding:14px 16px; border:1px solid #bbf7d0; border-left:4px solid #3f9142; border-radius:6px; margin-bottom:20px;">
+        <?php echo htmlspecialchars($approval_message); ?>
     </div>
     <?php endif; ?>
 
