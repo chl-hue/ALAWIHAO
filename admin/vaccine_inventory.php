@@ -10,6 +10,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'Admin' && $_SESSION[
 
 $message = "";
 $show_success_modal = false;
+$show_delete_success = false;
 $success_modal_title = "Registration Successful!";
 $success_modal_message = "";
 $success_modal_visible = false;
@@ -123,7 +124,7 @@ if (isset($_GET['delete_id'])) {
     if ($stmt = $conn->prepare($sql)) {
         $stmt->bind_param("i", $delete_id);
         if ($stmt->execute()) {
-            $show_success_modal = true;
+            $show_delete_success = true;
             $success_modal_title = "Deleted Successfully!";
             $success_modal_message = "The vaccine record has been successfully deleted.";
             $message = "Vaccine deleted successfully!";
@@ -522,6 +523,15 @@ for ($i = 1; $i <= 12; $i++) {
         .action-links a { font-weight: bold; text-decoration: none; margin-right: 10px; }
         .action-edit { color: var(--sage-green); }
         .action-delete { color: var(--danger-red); }
+        .delete-success-message {
+            color: #166534;
+            background: #f0fdf4;
+            padding: 14px 16px;
+            border: 1px solid #bbf7d0;
+            border-left: 4px solid #3f9142;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
@@ -536,6 +546,9 @@ for ($i = 1; $i <= 12; $i++) {
 
 <div id="main">
     <div class="inventory-container">
+        <?php if ($show_delete_success): ?>
+        <div class="delete-success-message">Record successfully deleted.</div>
+        <?php endif; ?>
         
         <div class="page-header">
             <h2>Vaccine Inventory</h2>
